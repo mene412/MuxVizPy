@@ -1,0 +1,145 @@
+[project]
+name = "MuxVizPy"
+version = "1.0.0"
+description = "A multilayer network analysis library inspired by MuxViz, using graph-tool and scientific Python"
+authors = [
+    { name = "Francesco Zambelli" },
+    { name = "Matteo Baldan" },
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["networks", "graph-tool", "multilayer", "multiplex", "centrality", "tensor", "sparse", "network science"]
+
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.3.3",
+    "polars>=0.20",
+    "pyarrow>=14.0",
+    "sparse>=0.15.4",
+    "numba>=0.59",
+    "tensorly>=0.8",
+    "matplotlib>=3.4",
+    "tqdm>=4.60",
+]
+
+[project.urls]
+Homepage = "https://github.com/CoMuNeLab/MuxVizPy"
+Repository = "https://github.com/CoMuNeLab/MuxVizPy"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["MuxVizPy", "MuxVizPy.*", "muxvizpy"]
+
+# ============================================================================
+# Optional Dependencies
+# ============================================================================
+#
+# NOTE: graph-tool (required) is a C++ library not available on PyPI.
+# It must be installed via conda BEFORE installing this package with uv:
+#
+#   conda create -n muxvizpy python=3.12 graph-tool -c conda-forge
+#   conda activate muxvizpy
+#   uv pip install -e ".[dev]"
+#
+# ============================================================================
+[project.optional-dependencies]
+# PyTorch with sparse tensor support (CPU version)
+# Note: torch-sparse wheels are built against specific torch versions
+# The find-links URL must match the torch version (torch-2.8.0+cpu.html)
+torch = [
+    "torch>=2.8,<2.9",
+    "torch-sparse>=0.6.18",
+]
+
+# Development tools
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+]
+
+# Documentation
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=2.0",
+    "sphinx-autodoc-typehints>=1.25",
+]
+
+# Spatial transcriptomics
+spatial = [
+    "squidpy>=1.3",
+    "scanpy>=1.9",
+    "anndata>=0.10",
+]
+
+# Interactive notebooks
+notebooks = [
+    "ipykernel>=6.0",
+    "ipywidgets>=8.0",
+    "marimo>=0.1",
+]
+
+# GPU acceleration with CUDA (requires NVIDIA GPU)
+# Install with: pip install cupy-cuda12x (adjust for your CUDA version)
+cuda = [
+    "cupy-cuda12x>=13.0",
+]
+
+cuda11 = [
+    "cupy-cuda11x>=13.0",
+]
+
+all = [
+    "MuxVizPy[torch,dev,docs,notebooks]",
+]
+
+# ============================================================================
+# UV Configuration
+# ============================================================================
+[tool.uv]
+# Allow pre-release versions for torch ecosystem
+prerelease = "if-necessary-or-explicit"
+
+# Find-links for PyG wheels (torch-sparse)
+find-links = ["https://data.pyg.org/whl/torch-2.8.0+cpu.html"]
+
+# Extra index for PyTorch CPU wheels
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+# Source configuration: torch comes from pytorch-cpu index
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+# ============================================================================
+# Development Tools Configuration
+# ============================================================================
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short --color=yes"
+log_cli = true
+log_cli_level = "DEBUG"
