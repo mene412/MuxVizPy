@@ -105,7 +105,7 @@ all = [
 # ============================================================================
 [tool.uv]
 # Allow pre-release versions for torch ecosystem
-prerelease = "if-necessary-or-explicit"
+prerelease = "if-necessary"
 
 # Find-links for PyG wheels (torch-sparse)
 find-links = ["https://data.pyg.org/whl/torch-2.8.0+cpu.html"]
