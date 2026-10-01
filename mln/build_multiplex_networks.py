@@ -124,6 +124,7 @@ def build_patient_multiplex(
     """
     nodes = extract_pathway_nodes(pathway_df)
     N = len(nodes)
+    print(f"{N} nodes in the network")
     node_to_id = {node: idx for idx, node in enumerate(nodes)}
     id_to_node = {idx: node for idx, node in enumerate(nodes)}
 

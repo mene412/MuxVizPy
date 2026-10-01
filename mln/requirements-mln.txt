@@ -1,0 +1,6 @@
+scikit-learn
+pyyaml
+umap-learn
+matplotlib
+seaborn
+networkx
