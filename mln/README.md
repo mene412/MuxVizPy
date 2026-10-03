@@ -1,22 +1,7 @@
-# MuxVizPy
+# Multilayers networks studies with MuxVizPy
 
 **MuxVizPy** is a Python package for multilayer and multiplex network analysis, inspired by the original [MuxViz](http://muxviz.net/) software.
 It provides tools to compute centralities, structural descriptors, mesoscale properties, percolation, and versatile visualizations—backed by [`graph-tool`](https://graph-tool.skewed.de/) and the scientific Python ecosystem.
-
----
-
-## Features
-
-- Construction of multilayer networks from CSV or metadata
-- Aggregate and supra-adjacency matrix utilities
-- Multiplex-aware centrality measures:
-  - Eigenvector, Katz, Random Walk (PageRank/classical), Hub, Authority, K-Core
-- Topological descriptors:
-  - Largest connected components, shortest-path matrices, similarity
-- Mesoscale analysis:
-  - Modularity, blockmodels, assortativity
-- Percolation analysis
-- 3D multilayer network visualization with `matplotlib`
 
 ---
 
@@ -69,27 +54,17 @@ uv pip install -e ".[torch]"
 
 ## Basic Usage
 
-For a basic usage script see the file `mln/run_pipeline.py`.
+Starting from 2 different files (DNA methylation and RNA expression) different pipelines can be easily executed to find out the best clustering.
 
----
+### Clustering directly on each input matrix alone
 
-## Requirements
+input: data/
 
-- Python >= 3.10
-- graph-tool >= 2.45 (installed via conda, see above)
-- numpy, scipy, pandas, polars, matplotlib, tqdm, tensorly, sparse, pyarrow
+### Clustering on pagerank results run on a single input matrix, for both matrices
 
-See `pyproject.toml` for the full list of core and optional dependencies.
+input (secondario): output/pagerank/DNA
+input (secondario): output/pagerank/RNA
 
----
+### Clustering on pagerank run on the multiplex network with 2 layers
 
-## License
-
-MIT License 2025
-
----
-
-## Acknowledgements
-
-- Inspired by the original [MuxViz](https://github.com/manlius/muxViz) platform.
-- Built with `graph-tool`, a performant graph analysis library.
+input (secondario): output/pagerank/mln
