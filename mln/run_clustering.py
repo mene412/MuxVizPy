@@ -23,32 +23,85 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 # ---------------------------------------------------------------------
 
 def load_pagerank_matrix(
-    pagerank_dir: Path, logger: logging.Logger
+    input_dir: Path,
+    logger: logging.Logger,
 ) -> pd.DataFrame:
-    csv_files = sorted(pagerank_dir.glob("*_pagerank.csv"))
-    if not csv_files:
-        raise FileNotFoundError(f"No *_pagerank.csv files found in {pagerank_dir}")
+    """Load PageRank files and return a sample x gene matrix."""
+    logger.info("Loading PageRank matrices from %s...", input_dir)
 
-    patient_records = {}
-    for i, fpath in enumerate(csv_files, start=1):
-        sample_id = fpath.name.replace("_pagerank.csv", "")
+    files = sorted(input_dir.glob("*_pagerank.csv"))
+
+    if not files:
+        raise FileNotFoundError(
+            f"No PageRank files found in {input_dir}"
+        )
+
+    matrices = []
+
+    for fpath in files:
         df = pd.read_csv(fpath)
-        required = {"gene", "multilayer_pagerank"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(f"{fpath} missing required columns: {sorted(missing)}")
 
-        if df["gene"].duplicated().any():
-            series = df.groupby("gene")["multilayer_pagerank"].sum()
+        required_gene_column = "gene"
+
+        if required_gene_column not in df.columns:
+            raise ValueError(
+                f"{fpath} missing required column: "
+                f"'{required_gene_column}'"
+            )
+
+        # Support both single-layer and multilayer PageRank outputs.
+        if "pagerank" in df.columns:
+            pagerank_column = "pagerank"
+        elif "multilayer_pagerank" in df.columns:
+            pagerank_column = "multilayer_pagerank"
         else:
-            series = df.set_index("gene")["multilayer_pagerank"]
+            raise ValueError(
+                f"{fpath} must contain either 'pagerank' "
+                "or 'multilayer_pagerank'. "
+                f"Found columns: {list(df.columns)}"
+            )
 
-        patient_records[sample_id] = series.astype(float)
-        logger.info("[%d/%d] Loaded %s", i, len(csv_files), sample_id)
+        sample_id = fpath.stem.replace("_pagerank", "")
 
-    matrix = pd.DataFrame.from_dict(patient_records, orient="index")
-    matrix = matrix.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-    return matrix.sort_index().sort_index(axis=1)
+        sample_matrix = df[
+            ["gene", pagerank_column]
+        ].copy()
+
+        sample_matrix = sample_matrix.dropna(
+            subset=["gene"]
+        )
+
+        sample_matrix["gene"] = sample_matrix["gene"].astype(str)
+
+        # Prevent duplicated gene names from creating ambiguous columns.
+        if sample_matrix["gene"].duplicated().any():
+            sample_matrix = (
+                sample_matrix
+                .groupby("gene", as_index=False)[pagerank_column]
+                .mean()
+            )
+
+        sample_series = sample_matrix.set_index("gene")[
+            pagerank_column
+        ]
+
+        sample_series.name = sample_id
+
+        matrices.append(sample_series)
+
+    matrix = pd.DataFrame(matrices)
+
+    matrix.index.name = "sample"
+
+    matrix = matrix.fillna(0.0)
+
+    logger.info(
+        "Loaded PageRank matrix: %d samples x %d genes",
+        matrix.shape[0],
+        matrix.shape[1],
+    )
+
+    return matrix.astype(float)
 
 
 def merge_clinical_metadata(
@@ -883,8 +936,8 @@ def main() -> None:
     args = parse_args()
 
     # Input validations
-    if not args.input_dir.exists() or not args.input_dir.is_dir():
-        logger.error("Input directory '%s' does not exist or is not a directory.", args.input_dir)
+    if not args.input_path.exists() or not args.input_path.is_dir():
+        logger.error("Input directory '%s' does not exist or is not a directory.", args.input_path)
         return
 
     if args.k_min < 2:
@@ -903,7 +956,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Load data
-    logger.info("Loading PageRank matrices from %s...", args.input_dir)
+    logger.info("Loading PageRank matrices from %s...", args.input_path)
     try:
         matrix = load_clustering_input(
             args.input_path,

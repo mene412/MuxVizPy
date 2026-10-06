@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import scipy.sparse as sp
 import graph_tool as gt
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Tuple
 
 from MuxVizPy.utils import parsing as parsing_utils
 
