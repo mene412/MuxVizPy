@@ -20,7 +20,6 @@ def main():
         required=True,
         help="Path to the YAML configuration file.",
     )
-    # Granular execution control
     parser.add_argument(
         "--skip-network",
         action="store_true",

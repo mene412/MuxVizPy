@@ -1,0 +1,63 @@
+# --------------------------------------------------
+# Pipeline Execution Flags
+# Set to false to skip any stage without editing code.
+# --------------------------------------------------
+steps:
+  build_network: false    # Set to true to regenerate multiplex networks
+  pagerank: false         # Set to true to recalculate PageRank
+  clustering: true        # Run clustering directly on the input directory
+
+# --------------------------------------------------
+# Input Data
+# --------------------------------------------------
+data:
+  rna: mln/data/RNAprof_logTPM_minmax.csv
+  methylation: mln/data/DNAmethyl_minmax.csv
+  pathway: mln/data/PathwayInCancer.csv
+
+# --------------------------------------------------
+# Network Parameters
+# --------------------------------------------------
+network:
+  omega: 1.5
+  aggregation: median
+  output_dir: output/multiplex_networks
+
+# --------------------------------------------------
+# PageRank Parameters
+# --------------------------------------------------
+pagerank:
+  alpha: 0.90
+  tolerance: 1.0e-10
+  max_iterations: 5000
+  output_dir: output/pagerank
+# --------------------------------------------------
+# Clustering Parameters
+# --------------------------------------------------
+clustering:
+  # Points directly to your precomputed PageRank files
+  input_dir: output_custom/centralities/pagerank
+  output_dir: output_custom/clustering/pagerank_comprehensive
+  clinical_file: mln/data/Clinical_features.csv
+
+  # Range of clusters k (hierarchical & k-means)
+  k_min: 2
+  k_max: 5
+
+  # Distance metrics to test
+  distances:
+    - euclidean
+    - cosine
+    - correlation
+
+  # Stability bootstrap parameters
+  n_repeats_stability: 100
+  stability_fraction: 0.80
+
+  # Louvain community detection parameters
+  louvain_n_neighbors: 20
+  louvain_resolution: 0.5
+  louvain_metric: cosine
+  louvain_mutual: false
+
+  random_state: 42

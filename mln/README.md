@@ -54,6 +54,8 @@ uv pip install -e ".[torch]"
 
 ## Basic Usage
 
+Goal: clustering the 285 samples/patients based on the 423 genes.
+
 Starting from 2 different files (DNA methylation and RNA expression) different pipelines can be easily executed to find out the best clustering.
 
 ### Clustering directly on each input matrix alone

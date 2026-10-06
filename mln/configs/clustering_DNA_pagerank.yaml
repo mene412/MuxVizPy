@@ -21,7 +21,7 @@ data:
 network:
   omega: 1.5
   aggregation: median
-  output_dir: output_custom/multiplex_networks
+  output_dir: output/multiplex_networks
 
 # --------------------------------------------------
 # PageRank Parameters
@@ -30,7 +30,7 @@ pagerank:
   alpha: 0.90
   tolerance: 1.0e-10
   max_iterations: 5000
-  output_dir: output_custom/centralities/pagerank
+  output_dir: output/pagerank
 
 # --------------------------------------------------
 # Clustering Parameters

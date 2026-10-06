@@ -97,6 +97,36 @@ def summarize_pagerank_matrix(matrix: pd.DataFrame, output_dir: Path) -> pd.Data
     summary.to_csv(output_dir / "pagerank_patient_qc.csv")
     return summary
 
+def load_clustering_input(
+    input_path: Path,
+    input_type: str,
+    logger: logging.Logger,
+) -> pd.DataFrame:
+
+    if input_type == "original":
+        matrix = pd.read_csv(input_path, index_col=0)
+
+        # Original matrices are genes x samples.
+        matrix = matrix.T
+
+    elif input_type == "pagerank":
+        matrix = load_pagerank_matrix(input_path, logger)
+
+    else:
+        raise ValueError(
+            f"Unknown input type: {input_type}. "
+            "Expected 'original' or 'pagerank'."
+        )
+
+    logger.info(
+        "Loaded %s input: %d samples x %d genes",
+        input_type,
+        matrix.shape[0],
+        matrix.shape[1],
+    )
+
+    return matrix.astype(float)
+
 # ---------------------------------------------------------------------
 # Representations & Clustering Engines
 # ---------------------------------------------------------------------
@@ -130,11 +160,164 @@ def safe_metric(metric_func, *args) -> float:
 
 
 def evaluate_labels(X: np.ndarray, labels: np.ndarray) -> dict:
-    result = {"silhouette": np.nan}
+    result = {
+        "silhouette": np.nan,
+        "within_cluster_sse": np.nan,
+        "within_cluster_variance": np.nan,
+    }
+
     unique = np.unique(labels)
-    if len(unique) < 2 or len(unique) >= len(labels):
-        return result
-    result["silhouette"] = safe_metric(silhouette_score, X, labels)
+    n = len(labels)
+    k = len(unique)
+
+    # Calculate the total within-cluster sum of squared distances
+    within_ss = 0.0
+
+    for cluster_id in unique:
+        X_cluster = X[labels == cluster_id]
+        center = X_cluster.mean(axis=0)
+        within_ss += np.sum((X_cluster - center) ** 2)
+
+    # Store the total within-cluster sum of squares (WSS/SSE)
+    result["within_cluster_sse"] = float(within_ss)
+
+    # Calculate the pooled within-cluster variance estimate
+    if n > k:
+        result["within_cluster_variance"] = float(
+            within_ss / (n - k)
+        )
+
+    # Calculate the silhouette score when at least two clusters exist
+    if 1 < k < n:
+        result["silhouette"] = safe_metric(
+            silhouette_score, X, labels
+        )
+
+    return result
+
+
+def gap_statistic(
+    X: np.ndarray,
+    k_values: Sequence[int],
+    method: str = "kmeans",
+    n_refs: int = 50,
+    random_state: int = 42,
+) -> pd.DataFrame:
+    """
+    Calculate the Gap statistic using within-cluster SSE.
+
+    Reference datasets are generated from independent uniform
+    distributions bounded by the observed minimum and maximum
+    of each feature.
+    """
+    rng = np.random.default_rng(random_state)
+    n, p = X.shape
+
+    # Define the lower and upper bounds for each feature
+    lower = X.min(axis=0)
+    upper = X.max(axis=0)
+
+    def fit_labels(data, k, seed):
+        # Fit K-means or Euclidean hierarchical clustering
+        if method == "kmeans":
+            return KMeans(
+                n_clusters=k,
+                random_state=seed,
+                n_init=20,
+            ).fit_predict(data)
+
+        if method == "hierarchical":
+            labels, _ = hierarchical_labels(
+                data, k, "euclidean"
+            )
+            return labels
+
+        raise ValueError(f"Unsupported method: {method}")
+
+    def calculate_sse(data, labels):
+        # Calculate the total squared distance from samples to their respective cluster centroids
+        total = 0.0
+
+        for cluster_id in np.unique(labels):
+            cluster = data[labels == cluster_id]
+            center = cluster.mean(axis=0)
+            total += np.sum((cluster - center) ** 2)
+
+        # Prevent taking the logarithm of zero
+        return max(float(total), np.finfo(float).tiny)
+
+    rows = []
+
+    for k in k_values:
+        # Skip invalid cluster counts
+        if k < 1 or k >= n:
+            continue
+
+        # Calculate the observed within-cluster dispersion
+        labels = fit_labels(X, k, random_state)
+        log_w_observed = np.log(
+            calculate_sse(X, labels)
+        )
+
+        # Calculate within-cluster dispersion for reference datasets
+        log_w_reference = []
+
+        for b in range(n_refs):
+            X_ref = rng.uniform(
+                low=lower,
+                high=upper,
+                size=(n, p),
+            )
+
+            labels_ref = fit_labels(
+                X_ref, k, random_state
+            )
+
+            log_w_reference.append(
+                np.log(calculate_sse(X_ref, labels_ref))
+            )
+
+        log_w_reference = np.asarray(log_w_reference)
+
+        # Calculate the Gap statistic and its standard error
+        gap = float(
+            log_w_reference.mean() - log_w_observed
+        )
+
+        sd = float(log_w_reference.std(ddof=1))
+        gap_se = sd * np.sqrt(1.0 + 1.0 / n_refs)
+
+        rows.append({
+            "algorithm": method,
+            "k": k,
+            "log_w_observed": log_w_observed,
+            "gap": gap,
+            "gap_se": gap_se,
+        })
+
+    result = pd.DataFrame(rows)
+
+    # Apply the one-standard-error selection rule.
+    result["selected_k"] = False
+
+    if len(result) >= 2:
+        for i in range(len(result) - 1):
+            current = result.iloc[i]
+            following = result.iloc[i + 1]
+
+            # Compare only consecutive cluster counts.
+            if current["k"] + 1 != following["k"]:
+                continue
+
+            # Select the first k satisfying the Gap criterion.
+            if current["gap"] >= (
+                following["gap"] - following["gap_se"]
+            ):
+                result.loc[
+                    result.index[i], "selected_k"
+                ] = True
+                break
+
     return result
 
 
@@ -380,6 +563,38 @@ def run_analysis(
     clusters_base_dir.mkdir(parents=True, exist_ok=True)
     X = make_representation(matrix)
 
+    # Calculate the Gap statistic for K-means and Euclidean hierarchical clustering
+    valid_k = [
+        k for k in k_values
+        if 1 <= k < X.shape[0]
+    ]
+
+    if valid_k:
+        for method in ("kmeans", "hierarchical"):
+            gap_df = gap_statistic(
+                X,
+                k_values=valid_k,
+                method=method,
+                n_refs=50,
+                random_state=random_state,
+            )
+
+            gap_df.to_csv(
+                output_dir
+                / f"{analysis_name}_{method}_gap_statistic.csv",
+                index=False,
+            )
+
+            selected = gap_df.loc[
+                gap_df["selected_k"], "k"
+            ].tolist()
+
+            logger.info(
+                "Gap statistic (%s): selected k = %s",
+                method,
+                selected if selected else "none",
+            )
+
     # 1. Hierarchical clustering + K-means
     for distance in distances:
         for k in k_values:
@@ -564,10 +779,16 @@ def parse_args() -> argparse.Namespace:
 
     # File paths
     parser.add_argument(
-        "--input-dir",
+        "--input-path",
         type=Path,
-        default=Path("output/centralities/pagerank"),
-        help="Directory containing *_pagerank.csv files (default: output/centralities/pagerank).",
+        required=True,
+        help="Path to the input matrix or PageRank directory.",
+    )
+    parser.add_argument(
+        "--input-type",
+        choices=["original", "pagerank"],
+        default="pagerank",
+        help="Type of input data: original or pagerank.",
     )
     parser.add_argument(
         "--output-dir",
@@ -684,7 +905,11 @@ def main() -> None:
     # 1. Load data
     logger.info("Loading PageRank matrices from %s...", args.input_dir)
     try:
-        matrix = load_pagerank_matrix(args.input_dir, logger)
+        matrix = load_clustering_input(
+            args.input_path,
+            args.input_type,
+            logger,
+        )
     except Exception as exc:
         logger.exception("Failed to load matrices: %s", exc)
         return
