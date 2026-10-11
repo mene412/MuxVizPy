@@ -25,6 +25,7 @@ def safe_metric(metric_func: Callable, *args) -> float:
 def evaluate_labels(
     X: np.ndarray,
     labels: np.ndarray,
+    metric: str = "euclidean",
 ) -> dict:
     """
     Calculate internal clustering metrics.
@@ -67,6 +68,7 @@ def evaluate_labels(
             silhouette_score,
             X,
             labels,
+            metric=metric,
         )
 
     return result

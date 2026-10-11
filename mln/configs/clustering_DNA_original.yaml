@@ -35,9 +35,9 @@ pagerank:
 # Clustering Parameters
 # --------------------------------------------------
 clustering:
-  # Points directly to your precomputed PageRank files
-  input_dir: output_custom/centralities/pagerank
-  output_dir: output_custom/clustering/pagerank_comprehensive
+  input_path: mln/data/DNAmethyl_minmax.csv
+  input_type: original
+  output_dir: output/clustering/DNA_original
   clinical_file: mln/data/Clinical_features.csv
 
   # Range of clusters k (hierarchical & k-means)

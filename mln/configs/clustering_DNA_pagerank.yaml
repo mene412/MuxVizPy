@@ -36,9 +36,11 @@ pagerank:
 # Clustering Parameters
 # --------------------------------------------------
 clustering:
-  # Points directly to your precomputed PageRank files
-  input_dir: output_custom/centralities/pagerank
-  output_dir: output_custom/clustering/pagerank_comprehensive
+  # Precomputed single-layer DNA PageRank CSVs; generate these with
+  # run_pagerank_single.py before running clustering.
+  input_path: output/pagerank/DNA
+  input_type: pagerank
+  output_dir: output/clustering/DNA_pagerank
   clinical_file: mln/data/Clinical_features.csv
 
   # Range of clusters k (hierarchical & k-means)

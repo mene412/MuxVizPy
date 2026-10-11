@@ -37,7 +37,7 @@ pagerank:
 clustering:
   input_path: mln/data/RNAprof_logTPM_minmax.csv
   input_type: original
-  output_dir: output_custom/clustering/RNA_original
+  output_dir: output/clustering/RNA_original
 
   # Range of clusters k (hierarchical & k-means)
   k_min: 2

@@ -931,10 +931,7 @@ def run_analysis(
                 )
             )
 
-            metrics_h = evaluate_labels(
-                X,
-                labels_h,
-            )
+            metrics_h = evaluate_labels(X, labels_h, metric=distance)
 
             reference_h = (
                 evaluate_reference_labels(

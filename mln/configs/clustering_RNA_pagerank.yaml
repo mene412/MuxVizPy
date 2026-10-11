@@ -36,6 +36,8 @@ pagerank:
 # Clustering Parameters
 # --------------------------------------------------
 clustering:
+  # Precomputed single-layer RNA PageRank CSVs; generate these with
+  # run_pagerank_single.py before running clustering.
   input_path: output/pagerank/RNA
   input_type: pagerank
   output_dir: output/clustering/RNA_pagerank

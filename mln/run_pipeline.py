@@ -86,7 +86,7 @@ def main():
         print("\n=== Computing multilayer PageRank ===")
         pagerank_command = [
             sys.executable,
-            "run_pagerank.py",
+            "mln/run_pagerank.py",
             "--input-dir", str(network["output_dir"]),
             "--output-dir", str(pagerank["output_dir"]),
             "--alpha", str(pagerank["alpha"]),
@@ -103,21 +103,20 @@ def main():
     if run_clustering:
         print("\n=== Running Sample Clustering ===")
 
-        # Determine input directory: explicit clustering input > pagerank output
-        clustering_input = clustering.get("input_dir")
+        clustering_input = clustering.get("input_path")
+        if not clustering_input and clustering.get("input_type", "pagerank") == "pagerank":
+            clustering_input = pagerank.get("output_dir")
         if not clustering_input:
-            if "output_dir" in pagerank:
-                clustering_input = pagerank["output_dir"]
-            else:
-                raise ValueError(
-                    "No input directory found for clustering. "
-                    "Specify 'clustering.input_dir' or 'pagerank.output_dir' in config."
-                )
+            raise ValueError(
+                "No clustering input found. Specify 'clustering.input_path' "
+                "or configure 'pagerank.output_dir' for PageRank input."
+            )
 
         clustering_command = [
             sys.executable,
-            "run_clustering.py",
-            "--input-dir", str(clustering_input),
+            "mln/run_clustering.py",
+            "--input-path", str(clustering_input),
+            "--input-type", str(clustering.get("input_type", "pagerank")),
             "--output-dir", str(clustering["output_dir"]),
             "--clinical-file", str(clustering.get("clinical_file", "mln/data/Clinical_features.csv")),
             "--k-min", str(clustering.get("k_min", 2)),
