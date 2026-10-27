@@ -8,7 +8,7 @@
 #SBATCH --output string-mln-%j.out
 #SBATCH --error string-mln-%j.err
 #SBATCH --mail-user matteo.meneghin@studenti.unipd.it
-#SBATCH --mail-type END,FAIL
+#SBATCH --mail-type BEGIN,END,FAIL
 
 set -euo pipefail
 

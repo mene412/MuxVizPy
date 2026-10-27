@@ -7,11 +7,19 @@
 #SBATCH --mem 16G
 #SBATCH --output string-mln-clustering-%j.out
 #SBATCH --error string-mln-clustering-%j.err
+#SBATCH --mail-user matteo.meneghin@studenti.unipd.it
+#SBATCH --mail-type BEGIN,END,FAIL
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+# SLURM stages the script in its spool directory, so resolve the repository
+# from the directory where sbatch was run. Submit this script from the repo root.
+REPO_ROOT="${SLURM_SUBMIT_DIR:-}"
+if [[ -z "${REPO_ROOT}" || ! -f "${REPO_ROOT}/mln/run_pipeline.py" ]]; then
+    echo "ERROR: submit this script from the MuxVizPy repository root." >&2
+    echo "SLURM_SUBMIT_DIR is '${REPO_ROOT}'." >&2
+    exit 1
+fi
 cd "${REPO_ROOT}"
 
 if command -v micromamba >/dev/null 2>&1; then
