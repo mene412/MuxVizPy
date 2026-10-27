@@ -1457,7 +1457,7 @@ def main() -> None:
             args.input_path,
         )
 
-        return
+        raise SystemExit(1)
 
     if (
         args.input_type == "pagerank"
@@ -1469,7 +1469,7 @@ def main() -> None:
             args.input_path,
         )
 
-        return
+        raise SystemExit(1)
 
     if (
         args.input_type == "original"
@@ -1481,7 +1481,7 @@ def main() -> None:
             args.input_path,
         )
 
-        return
+        raise SystemExit(1)
 
     if args.k_min < 2:
 
@@ -1489,7 +1489,7 @@ def main() -> None:
             "--k-min must be >= 2."
         )
 
-        return
+        raise SystemExit(1)
 
     if args.k_max < args.k_min:
 
@@ -1500,7 +1500,7 @@ def main() -> None:
             args.k_min,
         )
 
-        return
+        raise SystemExit(1)
 
     if not (
         0.0
@@ -1513,7 +1513,7 @@ def main() -> None:
             "in (0.0, 1.0]."
         )
 
-        return
+        raise SystemExit(1)
 
     if args.n_repeats_stability < 1:
 
@@ -1521,7 +1521,7 @@ def main() -> None:
             "--n-repeats-stability must be >= 1."
         )
 
-        return
+        raise SystemExit(1)
 
     k_values = range(
         args.k_min,
@@ -1558,7 +1558,7 @@ def main() -> None:
             exc,
         )
 
-        return
+        raise SystemExit(1) from exc
 
     if matrix.empty:
 
@@ -1566,7 +1566,7 @@ def main() -> None:
             "Input matrix is empty."
         )
 
-        return
+        raise SystemExit(1)
 
     if not np.isfinite(
         matrix.to_numpy()
@@ -1576,7 +1576,7 @@ def main() -> None:
             "Input matrix contains NaN or infinite values."
         )
 
-        return
+        raise SystemExit(1)
 
     matrix.to_csv(
         args.output_dir

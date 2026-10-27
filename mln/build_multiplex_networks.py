@@ -34,6 +34,69 @@ def load_and_preprocess_data(
     rna_df = pd.read_csv(rna_path, index_col=0)
     methyl_df = pd.read_csv(methyl_path, index_col=0)
     pathway_df = pd.read_csv(pathway_path)
+
+    # These matrices are expected to contain gene x sample numeric values.
+    # Missing molecular measurements would otherwise propagate NaNs into
+    # weighted adjacency matrices and make PageRank invalid. Impute each
+    # gene's missing measurements with its median across samples.
+    for matrix_name, matrix in (
+        ("RNA", rna_df),
+        ("methylation", methyl_df),
+    ):
+        matrix = matrix.apply(pd.to_numeric, errors="coerce")
+        missing_count = int(matrix.isna().sum().sum())
+        if missing_count:
+            gene_medians = matrix.median(axis=1)
+            all_missing_genes = gene_medians[gene_medians.isna()].index
+            if len(all_missing_genes):
+                raise ValueError(
+                    f"{matrix_name} matrix has {len(all_missing_genes)} genes "
+                    "with no numeric measurements; cannot median-impute them."
+                )
+            matrix = matrix.T.fillna(gene_medians).T
+            print(
+                f"Imputed {missing_count} missing {matrix_name} values "
+                "with gene-wise medians across samples."
+            )
+
+        if not np.isfinite(matrix.to_numpy(dtype=float)).all():
+            raise ValueError(
+                f"{matrix_name} matrix contains non-finite values after preprocessing."
+            )
+
+        if matrix_name == "RNA":
+            rna_df = matrix
+        else:
+            methyl_df = matrix
+
+    missing_columns = set(rna_df.columns).symmetric_difference(methyl_df.columns)
+    if missing_columns:
+        print(
+            f"Warning: RNA and methylation sample columns differ; "
+            f"the network builder will use their {len(set(rna_df.columns) & set(methyl_df.columns))} "
+            "shared samples."
+        )
+
+    required_pathway_columns = {"from", "to"}
+    if not required_pathway_columns.issubset(pathway_df.columns):
+        raise ValueError(
+            "Pathway file must contain 'from' and 'to' columns; "
+            f"found {list(pathway_df.columns)}."
+        )
+
+    pathway_nodes = set(
+        pathway_df["from"].dropna().astype(str).str.strip()
+    ) | set(
+        pathway_df["to"].dropna().astype(str).str.strip()
+    )
+    measured_genes = set(rna_df.index.astype(str).str.strip())
+    unmeasured_nodes = pathway_nodes - measured_genes
+    if unmeasured_nodes:
+        print(
+            f"Warning: {len(unmeasured_nodes)} of {len(pathway_nodes)} "
+            "STRING nodes are absent from the molecular matrices; their "
+            "values will be set to zero."
+        )
     
     return rna_df, methyl_df, pathway_df
 

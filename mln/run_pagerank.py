@@ -514,11 +514,22 @@ def main() -> None:
             successful,
         )
 
-    if successful == total_samples:
-        logger.info(
-            "All %d multiplex samples were processed successfully.",
-            total_samples,
+    if successful != total_samples or failed > 0:
+        raise RuntimeError(
+            f"PageRank failed for {failed} of {total_samples} samples; "
+            f"only {successful} completed successfully. See the log above."
         )
+
+    if len(output_files) != total_samples:
+        raise RuntimeError(
+            f"Expected {total_samples} PageRank output files, "
+            f"found {len(output_files)} in {args.output_dir}."
+        )
+
+    logger.info(
+        "All %d multiplex samples were processed successfully.",
+        total_samples,
+    )
 
 
 if __name__ == "__main__":
