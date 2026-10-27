@@ -1,0 +1,41 @@
+# Full multiplex workflow using STRING_net as the intra-layer topology.
+# Run from the repository root. Paths are relative to that directory.
+steps:
+  build_network: true
+  pagerank: true
+  clustering: true
+
+data:
+  rna: mln/data/RNAprof_logTPM_minmax.csv
+  methylation: mln/data/DNAmethyl_minmax.csv
+  pathway: mln/data/networks/STRING_net.csv
+
+network:
+  omega: 1.5
+  aggregation: median
+  output_dir: output/string_net/multiplex_networks
+
+pagerank:
+  alpha: 0.90
+  tolerance: 1.0e-10
+  max_iterations: 5000
+  output_dir: output/string_net/pagerank/mln
+
+clustering:
+  input_path: output/string_net/pagerank/mln
+  input_type: pagerank
+  output_dir: output/string_net/clustering/MLN_pagerank
+  clinical_file: mln/data/Clinical_features.csv
+  k_min: 2
+  k_max: 5
+  distances:
+    - euclidean
+    - cosine
+    - correlation
+  n_repeats_stability: 100
+  stability_fraction: 0.80
+  louvain_n_neighbors: 20
+  louvain_resolution: 0.5
+  louvain_metric: cosine
+  louvain_mutual: false
+  random_state: 42

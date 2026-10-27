@@ -13,7 +13,7 @@ steps:
 data:
   rna: mln/data/RNAprof_logTPM_minmax.csv
   methylation: mln/data/DNAmethyl_minmax.csv
-  pathway: mln/data/PathwayInCancer.csv
+  pathway: mln/data/networks/PathwayInCancer.csv
 
 # --------------------------------------------------
 # Network Parameters
@@ -21,7 +21,7 @@ data:
 network:
   omega: 1.5
   aggregation: median
-  output_dir: output/multiplex_networks
+  output_dir: output/pathway_in_cancer/multiplex_networks
 
 # --------------------------------------------------
 # PageRank Parameters
@@ -30,7 +30,7 @@ pagerank:
   alpha: 0.90
   tolerance: 1.0e-10
   max_iterations: 5000
-  output_dir: output/pagerank
+  output_dir: output/pathway_in_cancer/pagerank/RNA
 
 # --------------------------------------------------
 # Clustering Parameters
@@ -38,9 +38,9 @@ pagerank:
 clustering:
   # Precomputed single-layer RNA PageRank CSVs; generate these with
   # run_pagerank_single.py before running clustering.
-  input_path: output/pagerank/RNA
+  input_path: output/pathway_in_cancer/pagerank/RNA
   input_type: pagerank
-  output_dir: output/clustering/RNA_pagerank
+  output_dir: output/pathway_in_cancer/clustering/RNA_pagerank
 
   # Range of clusters k (hierarchical & k-means)
   k_min: 2

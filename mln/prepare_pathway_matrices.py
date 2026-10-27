@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -194,37 +195,51 @@ def prepare_matrix(
 
 
 def main():
-
-    pathway_path = Path(
-        "mln/data/PathwayInCancer.csv"
+    parser = argparse.ArgumentParser(
+        description=(
+            "Prepare DNA and RNA matrices using nodes from a pathway CSV. "
+            "Derived matrices are written outside the input data directory."
+        )
     )
-
-    dna_path = Path(
-        "mln/data/DNAmethyl_minmax.csv"
+    parser.add_argument(
+        "--pathway-path",
+        type=Path,
+        required=True,
+        help="Pathway CSV containing 'from' and 'to' columns.",
     )
-
-    rna_path = Path(
-        "mln/data/RNAprof_logTPM_minmax.csv"
+    parser.add_argument(
+        "--dna-path",
+        type=Path,
+        default=Path("mln/data/DNAmethyl_minmax.csv"),
+        help="Gene x sample DNA methylation matrix.",
     )
-
-    dna_output = Path(
-        "mln/data/DNAmethyl_pathway_nodes.csv"
+    parser.add_argument(
+        "--rna-path",
+        type=Path,
+        default=Path("mln/data/RNAprof_logTPM_minmax.csv"),
+        help="Gene x sample RNA expression matrix.",
     )
-
-    rna_output = Path(
-        "mln/data/RNAprof_logTPM_pathway_nodes.csv"
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("output/pathway_in_cancer/processed"),
+        help="Directory for the generated pathway-node matrices.",
     )
+    args = parser.parse_args()
+
+    dna_output = args.output_dir / "DNAmethyl_pathway_nodes.csv"
+    rna_output = args.output_dir / "RNAprof_logTPM_pathway_nodes.csv"
 
     prepare_matrix(
-        molecular_path=dna_path,
-        pathway_path=pathway_path,
+        molecular_path=args.dna_path,
+        pathway_path=args.pathway_path,
         output_path=dna_output,
         agg_func="mean",
     )
 
     prepare_matrix(
-        molecular_path=rna_path,
-        pathway_path=pathway_path,
+        molecular_path=args.rna_path,
+        pathway_path=args.pathway_path,
         output_path=rna_output,
         agg_func="mean",
     )

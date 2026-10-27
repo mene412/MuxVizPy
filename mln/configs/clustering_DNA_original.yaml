@@ -13,7 +13,7 @@ steps:
 data:
   rna: mln/data/RNAprof_logTPM_minmax.csv
   methylation: mln/data/DNAmethyl_minmax.csv
-  pathway: mln/data/PathwayInCancer.csv
+  pathway: mln/data/networks/PathwayInCancer.csv
 
 # --------------------------------------------------
 # Network Parameters
@@ -21,7 +21,7 @@ data:
 network:
   omega: 1.5
   aggregation: median
-  output_dir: output/multiplex_networks
+  output_dir: output/pathway_in_cancer/multiplex_networks
 
 # --------------------------------------------------
 # PageRank Parameters
@@ -30,14 +30,14 @@ pagerank:
   alpha: 0.90
   tolerance: 1.0e-10
   max_iterations: 5000
-  output_dir: output/pagerank
+  output_dir: output/pathway_in_cancer/pagerank/MLN
 # --------------------------------------------------
 # Clustering Parameters
 # --------------------------------------------------
 clustering:
   input_path: mln/data/DNAmethyl_minmax.csv
   input_type: original
-  output_dir: output/clustering/DNA_original
+  output_dir: output/pathway_in_cancer/clustering/DNA_original
   clinical_file: mln/data/Clinical_features.csv
 
   # Range of clusters k (hierarchical & k-means)
