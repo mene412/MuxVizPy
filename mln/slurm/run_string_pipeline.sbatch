@@ -12,10 +12,15 @@
 
 set -euo pipefail
 
-# This script lives in <repo>/mln/slurm. Resolve the repository root from
-# this file so it can be submitted from any working directory.
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+# SLURM stages the submitted batch file under its spool directory, so its
+# runtime path cannot be used to locate the repository. Submit from the repo
+# root and use SLURM_SUBMIT_DIR, which records that directory.
+REPO_ROOT="${SLURM_SUBMIT_DIR:-}"
+if [[ -z "${REPO_ROOT}" || ! -f "${REPO_ROOT}/mln/run_pipeline.py" ]]; then
+    echo "ERROR: submit this script from the MuxVizPy repository root." >&2
+    echo "SLURM_SUBMIT_DIR is '${REPO_ROOT}'." >&2
+    exit 1
+fi
 cd "${REPO_ROOT}"
 
 # Prefer micromamba on PATH; otherwise use the standard user-local location.
