@@ -14,10 +14,10 @@ from sklearn.metrics import adjusted_rand_score, silhouette_score
 # Internal clustering metrics
 # ---------------------------------------------------------------------
 
-def safe_metric(metric_func: Callable, *args) -> float:
+def safe_metric(metric_func: Callable, *args, **kwargs) -> float:
     """Return a metric value or NaN if the metric cannot be computed."""
     try:
-        return float(metric_func(*args))
+        return float(metric_func(*args, **kwargs))
     except Exception:
         return np.nan
 

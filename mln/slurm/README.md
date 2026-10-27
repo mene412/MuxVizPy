@@ -14,6 +14,16 @@ From the repository root, submit it with:
 sbatch mln/slurm/run_string_pipeline.sbatch
 ```
 
+If network generation and PageRank have already completed, submit only the
+clustering stage with:
+
+```bash
+sbatch mln/slurm/run_string_clustering.sbatch
+```
+
+The clustering-only job reads the existing PageRank CSVs under
+`output/string_net/pagerank/mln/` and skips the first two stages.
+
 SLURM writes `string-mln-<job-id>.out` and `.err` in the directory from which
 you run `sbatch`. Check the job with `squeue -u "$USER"`; inspect those files
 after submission. Pipeline results go under `output/string_net/`.
