@@ -14,6 +14,23 @@ From the repository root, submit it with:
 sbatch mln/slurm/run_string_pipeline.sbatch
 ```
 
+To run the raw RNA and DNA methylation clustering baseline (test 1), submit:
+
+```bash
+sbatch mln/slurm/run_string_baseline.sbatch
+```
+
+To calculate single-layer PageRank from the STRING network for each matrix and
+cluster both results separately (test 2), submit:
+
+```bash
+sbatch mln/slurm/run_string_pagerank.sbatch
+```
+
+The baseline results go under `output/string_net/clustering/baseline/`. Test 2
+writes PageRank CSVs under `output/string_net/pagerank/single/{RNA,DNA}/` and
+clustering results under `output/string_net/clustering/pagerank/{RNA,DNA}/`.
+
 If network generation and PageRank have already completed, submit only the
 clustering stage with:
 
