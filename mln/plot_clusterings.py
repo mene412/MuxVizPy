@@ -444,6 +444,12 @@ def parse_args():
         ),
     )
 
+    parser.add_argument(
+        "--skip-cms",
+        action="store_true",
+        help="Do not create the tumor-only CMS comparison figure.",
+    )
+
     args = parser.parse_args()
 
     selected_clusterings = []
@@ -511,6 +517,7 @@ def main():
 
     base_dir = args.base_dir
     output_dir = base_dir / "plots"
+    output_dir.mkdir(parents=True, exist_ok=True)
     metrics_file = (
         base_dir / "all_samples" / "all_samples_clustering_metrics.csv"
     )
@@ -612,7 +619,8 @@ def main():
         combined_path = output_dir / f"{method_name}.png"
         cms_path = output_dir / "cms" / f"{method_name}_cms.png"
 
-        cms_path.parent.mkdir(parents=True, exist_ok=True)
+        if cms_col is not None and not args.skip_cms:
+            cms_path.parent.mkdir(parents=True, exist_ok=True)
 
         plot_clusters_and_group(
             embeddings=embeddings,
@@ -623,7 +631,7 @@ def main():
             output_path=combined_path,
         )
 
-        if cms_col is not None:
+        if cms_col is not None and not args.skip_cms:
             plot_cms(
                 embeddings=embeddings,
                 cms_labels=cms_labels,
@@ -648,7 +656,7 @@ def main():
         )
 
         print(f"  Saved {combined_path}")
-        if cms_col is not None:
+        if cms_col is not None and not args.skip_cms:
             print(f"  Saved {cms_path}")
 
     if summary_rows:
