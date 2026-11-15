@@ -19,6 +19,11 @@ import pandas as pd
 
 
 METRICS = ("silhouette", "ari_group", "ari_cms")
+METRIC_LABELS = {
+    "silhouette": "Silhouette",
+    "ari_group": "ARI: tumor vs normal",
+    "ari_cms": "ARI: CMS subtypes",
+}
 
 
 def _safe_name(value: str) -> str:
@@ -26,28 +31,29 @@ def _safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_")
 
 
-def _plot_file(csv_path: Path, root: Path, output_dir: Path) -> int:
+def _read_metrics(csv_path: Path, root: Path) -> tuple[str, pd.DataFrame] | None:
+    """Read one aggregate file and return its display label and data."""
     try:
         frame = pd.read_csv(csv_path)
     except (OSError, pd.errors.ParserError) as exc:
         print(f"Skipping unreadable file {csv_path}: {exc}")
-        return 0
+        return None
 
     if frame.empty:
         print(f"Skipping empty file: {csv_path}")
-        return 0
+        return None
 
     missing = [column for column in METRICS if column not in frame.columns]
     if missing:
         print(f"Skipping {csv_path}: missing metric columns {', '.join(missing)}")
-        return 0
+        return None
 
     # Use k when available; Louvain rows without k are positioned by their
     # detected cluster count so they can appear on the same x axis.
     x_column = "k" if "k" in frame.columns else "n_clusters"
     if x_column not in frame.columns:
         print(f"Skipping {csv_path}: neither 'k' nor 'n_clusters' is present")
-        return 0
+        return None
     if x_column == "k" and "n_clusters" in frame.columns:
         frame[x_column] = frame[x_column].fillna(frame["n_clusters"])
 
@@ -56,7 +62,7 @@ def _plot_file(csv_path: Path, root: Path, output_dir: Path) -> int:
         frame["method"] = "all results"
         group_columns = ["method"]
 
-    label_column = " / ".join(group_columns)
+    label_column = "method"
     if len(group_columns) == 1:
         frame[label_column] = frame[group_columns[0]].fillna("unknown").astype(str)
     else:
@@ -67,37 +73,99 @@ def _plot_file(csv_path: Path, root: Path, output_dir: Path) -> int:
         )
 
     relative = csv_path.parent.relative_to(root)
-    prefix = _safe_name(str(relative)) or "root"
+    setup = str(relative) if str(relative) != "." else root.name
+    frame["_x"] = pd.to_numeric(frame[x_column], errors="coerce")
+    frame["_method"] = frame[label_column].astype(str)
+    return setup, frame
+
+
+def _plot_all(
+    entries: list[tuple[str, pd.DataFrame]], output_dir: Path, root: Path
+) -> Path:
+    """Create a shared-scale metric-by-setup panel figure."""
+    setups = [setup for setup, _ in entries]
+    methods = sorted({
+        method
+        for _, frame in entries
+        for method in frame["_method"].dropna().unique()
+    })
+    palette = plt.get_cmap("tab10")
+    colors = {method: palette(i % 10) for i, method in enumerate(methods)}
+
+    fig, axes = plt.subplots(
+        len(METRICS), len(entries),
+        figsize=(4.0 * len(entries), 3.1 * len(METRICS)),
+        sharey="row", squeeze=False,
+    )
+    for column, (setup, frame) in enumerate(entries):
+        for row, metric in enumerate(METRICS):
+            ax = axes[row, column]
+            data = frame[["_x", "_method", metric]].copy()
+            data[metric] = pd.to_numeric(data[metric], errors="coerce")
+            data = data.dropna(subset=["_x", metric])
+            for method, series in data.groupby("_method", sort=True):
+                series = series.groupby("_x", as_index=False)[metric].mean()
+                series = series.sort_values("_x")
+                ax.plot(
+                    series["_x"], series[metric], marker="o", linewidth=1.8,
+                    markersize=4, color=colors[method], label=method,
+                )
+            ax.set_ylim(-0.1, 1.05)
+            ax.grid(True, alpha=0.25)
+            ax.set_xlabel("Number of clusters (k)")
+            if column == 0:
+                ax.set_ylabel(METRIC_LABELS[metric])
+            if row == 0:
+                ax.set_title(setup.replace("/", "\n"), fontsize=10)
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles, labels, title="Algorithm / distance",
+            loc="lower center", bbox_to_anchor=(0.5, 0.01), ncol=min(5, len(labels)),
+        )
+    fig.suptitle(f"Clustering metrics — {root.name}", y=0.995)
+    fig.tight_layout(rect=(0, 0.07, 1, 0.97))
     output_dir.mkdir(parents=True, exist_ok=True)
+    destination = output_dir / "clustering_metrics.png"
+    fig.savefig(destination, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return destination
+
+
+def _plot_individual(
+    entries: list[tuple[str, pd.DataFrame]], output_dir: Path
+) -> int:
+    """Save one full-size figure per setup and metric for easier inspection."""
     written = 0
+    for setup, frame in entries:
+        prefix = _safe_name(setup) or "root"
+        for metric in METRICS:
+            data = frame[["_x", "_method", metric]].copy()
+            data[metric] = pd.to_numeric(data[metric], errors="coerce")
+            data = data.dropna(subset=["_x", metric])
+            if data.empty:
+                continue
 
-    for metric in METRICS:
-        data = frame[[x_column, label_column, metric]].copy()
-        data[x_column] = pd.to_numeric(data[x_column], errors="coerce")
-        data[metric] = pd.to_numeric(data[metric], errors="coerce")
-        data = data.dropna(subset=[x_column, metric])
-        if data.empty:
-            print(f"No numeric {metric} values in {csv_path}")
-            continue
-
-        fig, ax = plt.subplots(figsize=(8, 5))
-        for label, series in data.groupby(label_column, sort=True):
-            series = series.groupby(x_column, as_index=False)[metric].mean()
-            series = series.sort_values(x_column)
-            ax.plot(series[x_column], series[metric], marker="o", label=label)
-
-        ax.set_xlabel("Number of clusters (k)")
-        ax.set_ylabel(metric.replace("_", " ").title())
-        ax.set_title(f"{metric.replace('_', ' ').title()} — {relative or Path('.')}")
-        ax.grid(True, alpha=0.3)
-        ax.legend(title=label_column, bbox_to_anchor=(1.02, 1), loc="upper left")
-        fig.tight_layout()
-        destination = output_dir / f"{prefix}_{metric}.png"
-        fig.savefig(destination, dpi=200, bbox_inches="tight")
-        plt.close(fig)
-        print(f"Saved {destination}")
-        written += 1
-
+            fig, ax = plt.subplots(figsize=(9, 6))
+            for method, series in data.groupby("_method", sort=True):
+                series = series.groupby("_x", as_index=False)[metric].mean()
+                series = series.sort_values("_x")
+                ax.plot(
+                    series["_x"], series[metric], marker="o", linewidth=2,
+                    markersize=6, label=method,
+                )
+            ax.set_ylim(-0.1, 1.05)
+            ax.set_xlabel("Number of clusters (k)")
+            ax.set_ylabel(METRIC_LABELS[metric])
+            ax.set_title(f"{METRIC_LABELS[metric]} — {setup}")
+            ax.grid(True, alpha=0.3)
+            ax.legend(title="Algorithm / distance", loc="best")
+            fig.tight_layout()
+            destination = output_dir / f"{prefix}_{metric}.png"
+            fig.savefig(destination, dpi=220, bbox_inches="tight")
+            plt.close(fig)
+            written += 1
     return written
 
 
@@ -113,9 +181,17 @@ def plot_metrics(input_path: Path) -> int:
         return 0
 
     output_dir = root / "clustering" / "metric_plots"
-    count = sum(_plot_file(path, root, output_dir) for path in files)
-    print(f"Created {count} plot(s) from {len(files)} aggregate file(s).")
-    return count
+    entries = [entry for path in files if (entry := _read_metrics(path, root)) is not None]
+    if not entries:
+        print("No usable aggregate metric files found.")
+        return 0
+
+    destination = _plot_all(entries, output_dir, root)
+    print(f"Saved combined metric figure: {destination}")
+    individual_count = _plot_individual(entries, output_dir)
+    print(f"Saved {individual_count} individual setup/metric plot(s).")
+    print(f"Included {len(entries)} setup(s) from {len(files)} aggregate file(s).")
+    return individual_count + 1
 
 
 def main() -> None:
