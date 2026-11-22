@@ -31,6 +31,13 @@ def _safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_")
 
 
+def _set_cluster_ticks(ax: plt.Axes) -> None:
+    """Show every cluster count through five, preserving the wider spacing after."""
+    existing = ax.get_xticks()
+    ticks = sorted({2, 3, 4, 5, *(tick for tick in existing if tick > 5)})
+    ax.set_xticks(ticks)
+
+
 def _read_metrics(csv_path: Path, root: Path) -> tuple[str, pd.DataFrame] | None:
     """Read one aggregate file and return its display label and data."""
     try:
@@ -83,7 +90,6 @@ def _plot_all(
     entries: list[tuple[str, pd.DataFrame]], output_dir: Path, root: Path
 ) -> Path:
     """Create a shared-scale metric-by-setup panel figure."""
-    setups = [setup for setup, _ in entries]
     methods = sorted({
         method
         for _, frame in entries
@@ -111,6 +117,8 @@ def _plot_all(
                     markersize=4, color=colors[method], label=method,
                 )
             ax.set_ylim(-0.1, 1.05)
+            _set_cluster_ticks(ax)
+            ax.set_xlim(right=26)
             ax.grid(True, alpha=0.25)
             ax.set_xlabel("Number of clusters (k)")
             if column == 0:
@@ -156,6 +164,8 @@ def _plot_individual(
                     markersize=6, label=method,
                 )
             ax.set_ylim(-0.1, 1.05)
+            _set_cluster_ticks(ax)
+            ax.set_xlim(right=26)
             ax.set_xlabel("Number of clusters (k)")
             ax.set_ylabel(METRIC_LABELS[metric])
             ax.set_title(f"{METRIC_LABELS[metric]} — {setup}")
