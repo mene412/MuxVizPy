@@ -98,13 +98,14 @@ def _plot_all(
     palette = plt.get_cmap("tab10")
     colors = {method: palette(i % 10) for i, method in enumerate(methods)}
 
+    rows, columns = len(entries), len(METRICS)
     fig, axes = plt.subplots(
-        len(METRICS), len(entries),
-        figsize=(4.0 * len(entries), 3.1 * len(METRICS)),
-        sharey="row", squeeze=False,
+        rows, columns,
+        figsize=(4.2 * columns, 4.5 * rows),
+        sharey="col", squeeze=False,
     )
-    for column, (setup, frame) in enumerate(entries):
-        for row, metric in enumerate(METRICS):
+    for row, (setup, frame) in enumerate(entries):
+        for column, metric in enumerate(METRICS):
             ax = axes[row, column]
             data = frame[["_x", "_method", metric]].copy()
             data[metric] = pd.to_numeric(data[metric], errors="coerce")
@@ -121,19 +122,19 @@ def _plot_all(
             ax.set_xlim(right=26)
             ax.grid(True, alpha=0.25)
             ax.set_xlabel("Number of clusters (k)")
-            if column == 0:
-                ax.set_ylabel(METRIC_LABELS[metric])
             if row == 0:
-                ax.set_title(setup.replace("/", "\n"), fontsize=10)
+                ax.set_ylabel(METRIC_LABELS[metric])
+            ax.set_title(f"{setup.replace('/', ' / ')}\n{METRIC_LABELS[metric]}", fontsize=10)
 
     handles, labels = axes[0, 0].get_legend_handles_labels()
+    bottom = 0.18 if handles else 0.02
     if handles:
         fig.legend(
             handles, labels, title="Algorithm / distance",
-            loc="lower center", bbox_to_anchor=(0.5, 0.01), ncol=min(5, len(labels)),
+            loc="lower center", bbox_to_anchor=(0.5, 0.015), ncol=min(5, len(labels)),
         )
     fig.suptitle(f"Clustering metrics — {root.name}", y=0.995)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.97))
+    fig.tight_layout(rect=(0, bottom, 1, 0.97))
     output_dir.mkdir(parents=True, exist_ok=True)
     destination = output_dir / "clustering_metrics.png"
     fig.savefig(destination, dpi=220, bbox_inches="tight")
