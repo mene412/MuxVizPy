@@ -1,59 +1,75 @@
-# Run the STRING pipeline with SLURM
+# Run the clustering pipelines with SLURM
 
-The batch script follows the DEI cluster's SLURM requirements and runs the full workflow from
-`mln/configs/clustering_MLN_STRING_net_pagerank.yaml`: multiplex network
-generation, multilayer PageRank, and clustering. It expects a micromamba
-environment named `muxvizpy` (or the name set in `MUXVIZ_ENV`) and the input
-files under `mln/data/`. By default it looks for environments under
-`$HOME/micromamba`, matching the micromamba setup instructions. If you chose a
-different root prefix, submit with `MAMBA_ROOT_PREFIX=/your/path`.
+All clustering configurations explore `k=2` through `k=25`. Their output
+directories include `_k2-25` so these runs remain separate from earlier
+`k=2..5` outputs. Run the commands below from the repository root on the
+server. The jobs expect the `muxvizpy` micromamba environment and the input
+files under `mln/data/`. Override `MUXVIZ_ENV` or `MAMBA_ROOT_PREFIX` when your
+server setup uses different values.
 
-From the repository root, submit it with:
+## PathwayInCancer configurations
+
+These five configs run clustering against existing data. In particular, the
+RNA/DNA PageRank and MLN PageRank configs require their PageRank CSVs to have
+already been generated in the configured input folders.
 
 ```bash
-sbatch mln/slurm/run_string_pipeline.sbatch
+sbatch --export=ALL,CONFIG=mln/configs/clustering_RNA_original.yaml mln/slurm/run_config.sbatch
+sbatch --export=ALL,CONFIG=mln/configs/clustering_DNA_original.yaml mln/slurm/run_config.sbatch
+sbatch --export=ALL,CONFIG=mln/configs/clustering_RNA_pagerank.yaml mln/slurm/run_config.sbatch
+sbatch --export=ALL,CONFIG=mln/configs/clustering_DNA_pagerank.yaml mln/slurm/run_config.sbatch
+sbatch --export=ALL,CONFIG=mln/configs/clustering_MLN_pagerank.yaml mln/slurm/run_config.sbatch
 ```
 
-To run the raw RNA and DNA methylation clustering baseline (test 1), submit:
+`run_config.sbatch` runs clustering only by default. To honor every stage
+enabled in a config, submit with `RUN_FULL_PIPELINE=1`; note that these
+PathwayInCancer configs currently disable network generation and PageRank.
+
+## Direct RNA and DNA baselines
+
+This runs raw-matrix clustering for both RNA and DNA in sequence:
 
 ```bash
 sbatch mln/slurm/run_string_baseline.sbatch
 ```
 
-To calculate single-layer PageRank from the STRING network for each matrix and
-cluster both results separately (test 2), submit:
+Results are written under
+`output/string_net/clustering/baseline/{RNA,DNA}_k2-25/`.
+
+## Single-layer PageRank for RNA and DNA
+
+This computes PageRank from the STRING network separately for RNA and DNA,
+then clusters both PageRank result sets:
 
 ```bash
 sbatch mln/slurm/run_string_pagerank.sbatch
 ```
 
-The baseline results go under `output/string_net/clustering/baseline/`. Test 2
-writes PageRank CSVs under `output/string_net/pagerank/single/{RNA,DNA}/` and
-clustering results under `output/string_net/clustering/pagerank/{RNA,DNA}/`.
+PageRank files go under `output/string_net/pagerank/single/{RNA,DNA}/` and
+clustering results under
+`output/string_net/clustering/pagerank/{RNA,DNA}_k2-25/`.
 
-If network generation and PageRank have already completed, submit only the
-clustering stage with:
+## Multilayer PageRank (MLN)
+
+To generate the STRING multiplex network, calculate multilayer PageRank, and
+cluster its results in one job:
+
+```bash
+sbatch mln/slurm/run_string_pipeline.sbatch
+```
+
+This runs the full config at
+`mln/configs/clustering_MLN_STRING_net_pagerank.yaml`. If the multiplex
+network and PageRank files already exist, run clustering only:
 
 ```bash
 sbatch mln/slurm/run_string_clustering.sbatch
 ```
 
-The clustering-only job reads the existing PageRank CSVs under
-`output/string_net/pagerank/mln/` and skips the first two stages.
+## Monitor jobs
 
-SLURM writes `string-mln-<job-id>.out` and `.err` in the directory from which
-you run `sbatch`. Check the job with `squeue -u "$USER"`; inspect those files
-after submission. Pipeline results go under `output/string_net/`.
-
-The script requests the `allgroups` partition, one task, one CPU, 16 GB of
-memory, and 24 hours. The DEI documentation lists `--ntasks`, `--partition`,
-`--time`, and `--mem` as required directives, and advises requesting only the
-resources the job needs. The memory and time requests are initial estimates
-because this STRING run has not yet been benchmarked on the cluster; check job
-efficiency after it finishes and adjust future requests. Add your DEI email
-and uncomment the mail directives if you want notifications.
-
-The input data are git-ignored, so make sure they have been copied to the
-server clone before submitting. See the [DEI SLURM basics](https://docs.dei.unipd.it/en/CLUSTER/Slurm_basics)
-and [SLURM examples](https://docs.dei.unipd.it/en/CLUSTER/Slurm_examples).
-
+SLURM writes log files in the directory where you submit the job. Check job
+status with `squeue -u "$USER"`, then inspect the matching `.out` and `.err`
+files. The existing resource requests are starting estimates; review actual
+elapsed time and memory use after the first `k=2..25` run before adjusting
+them. Ensure the git-ignored input data have been copied to the server clone.

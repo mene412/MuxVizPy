@@ -53,8 +53,9 @@ for modality in RNA DNA; do
     srun "${MICROMAMBA}" run -n "${ENV_NAME}" \
         python mln/run_clustering.py \
         --input-path "${INPUT}" --input-type original \
-        --output-dir "output/string_net/clustering/baseline/${modality}" \
-        --clinical-file "${CLINICAL}"
+        --output-dir "output/string_net/clustering/baseline/${modality}_k2-25" \
+        --clinical-file "${CLINICAL}" \
+        --k-min 2 --k-max 25
 done
 
 echo "Finished: $(date)"

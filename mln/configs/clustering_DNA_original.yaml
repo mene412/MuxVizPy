@@ -37,12 +37,12 @@ pagerank:
 clustering:
   input_path: mln/data/DNAmethyl_minmax.csv
   input_type: original
-  output_dir: output/pathway_in_cancer/clustering/DNA_original
+  output_dir: output/pathway_in_cancer/clustering/DNA_original_k2-25
   clinical_file: mln/data/Clinical_features.csv
 
   # Range of clusters k (hierarchical & k-means)
   k_min: 2
-  k_max: 5
+  k_max: 25
 
   # Distance metrics to test
   distances:

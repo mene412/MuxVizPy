@@ -52,7 +52,7 @@ for modality in RNA DNA; do
         INPUT="mln/data/DNAmethyl_minmax.csv"
     fi
     PAGERANK_DIR="output/string_net/pagerank/single/${modality}"
-    CLUSTER_DIR="output/string_net/clustering/pagerank/${modality}"
+    CLUSTER_DIR="output/string_net/clustering/pagerank/${modality}_k2-25"
 
     srun "${MICROMAMBA}" run -n "${ENV_NAME}" \
         python mln/run_pagerank_single.py \
@@ -63,7 +63,8 @@ for modality in RNA DNA; do
     srun "${MICROMAMBA}" run -n "${ENV_NAME}" \
         python mln/run_clustering.py \
         --input-path "${PAGERANK_DIR}" --input-type pagerank \
-        --output-dir "${CLUSTER_DIR}" --clinical-file "${CLINICAL}"
+        --output-dir "${CLUSTER_DIR}" --clinical-file "${CLINICAL}" \
+        --k-min 2 --k-max 25
 done
 
 echo "Finished: $(date)"

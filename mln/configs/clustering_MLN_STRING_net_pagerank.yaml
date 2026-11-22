@@ -24,10 +24,10 @@ pagerank:
 clustering:
   input_path: output/string_net/pagerank/mln
   input_type: pagerank
-  output_dir: output/string_net/clustering/MLN_pagerank
+  output_dir: output/string_net/clustering/MLN_pagerank_k2-25
   clinical_file: mln/data/Clinical_features.csv
   k_min: 2
-  k_max: 5
+  k_max: 25
   distances:
     - euclidean
     - cosine

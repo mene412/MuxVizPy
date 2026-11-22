@@ -40,12 +40,12 @@ clustering:
   # run_pagerank_single.py before running clustering.
   input_path: output/pathway_in_cancer/pagerank/DNA
   input_type: pagerank
-  output_dir: output/pathway_in_cancer/clustering/DNA_pagerank
+  output_dir: output/pathway_in_cancer/clustering/DNA_pagerank_k2-25
   clinical_file: mln/data/Clinical_features.csv
 
   # Range of clusters k (hierarchical & k-means)
   k_min: 2
-  k_max: 5
+  k_max: 25
 
   # Distance metrics to test
   distances:

@@ -37,11 +37,11 @@ pagerank:
 clustering:
   input_path: mln/data/RNAprof_logTPM_minmax.csv
   input_type: original
-  output_dir: output/pathway_in_cancer/clustering/RNA_original
+  output_dir: output/pathway_in_cancer/clustering/RNA_original_k2-25
 
   # Range of clusters k (hierarchical & k-means)
   k_min: 2
-  k_max: 5
+  k_max: 25
 
   # Distance metrics to test
   distances:
