@@ -1,7 +1,7 @@
 from pathlib import Path
-import shutil
 import warnings
 import argparse
+import re
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -72,13 +72,8 @@ def find_cluster_file(base_dir, distance, algorithm, k):
             continue
 
         if k is not None:
-            k_tokens = (
-                f"k{k}",
-                f"k_{k}",
-                f"k-{k}",
-            )
-
-            if not any(token in full_path for token in k_tokens):
+            # Match a complete k value: k2 must not also match k20-k25.
+            if not re.search(rf"(?<![a-z0-9])k(?:_|-)?{k}(?!\d)", full_path):
                 continue
 
         candidates.append(path)
@@ -440,7 +435,8 @@ def parse_args():
         metavar="DISTANCE,ALGORITHM,K",
         help=(
             "Selected clusterings. Specify each as "
-            "'distance,algorithm,k'. Use 'none' for k in Louvain."
+            "'distance,algorithm,k'. Louvain does not use k; if an integer "
+            "is supplied, it is ignored with a warning."
         ),
     )
 
@@ -493,7 +489,10 @@ def parse_args():
                 parser.error("k must be at least 2.")
 
         if algorithm == "louvain" and k is not None:
-            parser.error("Louvain requires k='none'.")
+            print(
+                f"Warning: k={k} is ignored for Louvain; "
+                "Louvain determines its own number of clusters."
+            )
 
         if algorithm != "louvain" and k is None:
             parser.error(
@@ -579,7 +578,7 @@ def main():
             & (metrics["distance"] == distance)
         ].copy()
 
-        if k is None:
+        if algorithm == "louvain" or k is None:
             matching = matching[matching["k"].isna()]
         else:
             matching = matching[matching["k"] == float(k)]
@@ -594,7 +593,7 @@ def main():
             base_dir,
             distance,
             algorithm,
-            k,
+            None if algorithm == "louvain" else k,
         )
 
         if cluster_file is None:
@@ -613,7 +612,7 @@ def main():
             else "louvain"
         )
 
-        if k is not None:
+        if algorithm != "louvain" and k is not None:
             method_name += f"_k{k}"
 
         combined_path = output_dir / f"{method_name}.png"
@@ -645,7 +644,7 @@ def main():
             {
                 "distance": distance,
                 "algorithm": algorithm,
-                "k": k,
+                "k": None if algorithm == "louvain" else k,
                 "assignment_file": str(cluster_file),
                 "n_clusters": row.get("n_clusters", np.nan),
                 "stability_ARI": row.get("stability_ARI", np.nan),
