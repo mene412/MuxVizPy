@@ -1,5 +1,4 @@
 from pathlib import Path
-import warnings
 import argparse
 import re
 
@@ -7,19 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import umap.umap_ as umap
-
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 
 
 # ---------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------
 
-
-RANDOM_STATE = 42
-TSNE_PERPLEXITY = 30
 
 sns.set_theme(style="whitegrid", context="notebook")
 
@@ -28,12 +20,59 @@ sns.set_theme(style="whitegrid", context="notebook")
 # Data loading
 # ---------------------------------------------------------------------
 
-def load_data(matrix_file, metadata_file, metrics_file):
-    matrix = pd.read_csv(matrix_file, index_col=0)
+def load_data(metadata_file, metrics_file):
     metadata = pd.read_csv(metadata_file)
     metrics = pd.read_csv(metrics_file)
 
-    return matrix, metadata, metrics
+    return metadata, metrics
+
+
+def load_saved_embeddings(cluster_file):
+    """Load the PCA, UMAP, and t-SNE coordinates saved with assignments."""
+
+    suffix = "_assignments"
+    if not cluster_file.stem.endswith(suffix):
+        raise ValueError(
+            f"Cannot determine coordinate filenames from assignment file: "
+            f"{cluster_file}"
+        )
+
+    prefix = cluster_file.stem[:-len(suffix)]
+    coordinate_files = {
+        "PCA": (f"{prefix}_pca.csv", ("PC1", "PC2")),
+        "UMAP": (f"{prefix}_umap_coordinates.csv", ("dim1", "dim2")),
+        "t-SNE": (f"{prefix}_tsne_coordinates.csv", ("dim1", "dim2")),
+    }
+
+    embeddings = {}
+    for name, (filename, coordinate_columns) in coordinate_files.items():
+        path = cluster_file.parent / filename
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Missing saved {name} coordinates for {cluster_file}: {path}"
+            )
+
+        coordinates = pd.read_csv(path)
+        required = {"sample_id", *coordinate_columns}
+        missing = required.difference(coordinates.columns)
+        if missing:
+            raise ValueError(
+                f"{path} is missing required columns: {sorted(missing)}"
+            )
+
+        coordinates = coordinates[
+            ["sample_id", *coordinate_columns]
+        ].copy()
+        coordinates["sample_id"] = (
+            coordinates["sample_id"].astype(str).str.strip()
+        )
+        coordinates = coordinates.drop_duplicates("sample_id").set_index(
+            "sample_id"
+        )
+        coordinates.columns = ["Dimension 1", "Dimension 2"]
+        embeddings[name] = coordinates
+
+    return embeddings
 
 
 # ---------------------------------------------------------------------
@@ -172,67 +211,6 @@ def load_cluster_labels(path):
     labels["sample_id"] = labels["sample_id"].astype(str).str.strip()
 
     return labels.drop_duplicates("sample_id").set_index("sample_id")
-
-
-# ---------------------------------------------------------------------
-# Embeddings
-# ---------------------------------------------------------------------
-
-def calculate_embeddings(matrix):
-    """Calculate all three embeddings once for reuse."""
-
-    n_samples = len(matrix)
-
-    if n_samples < 4:
-        raise ValueError("At least four samples are required for these plots.")
-
-    print("Calculating PCA...")
-    pca_values = PCA(
-        n_components=2,
-        random_state=RANDOM_STATE,
-    ).fit_transform(matrix)
-
-    print("Calculating UMAP...")
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message="n_jobs value .* overridden .* random_state",
-        )
-
-        umap_values = umap.UMAP(
-            n_components=2,
-            n_neighbors=min(15, n_samples - 1),
-            min_dist=0.1,
-            metric="euclidean",
-            random_state=RANDOM_STATE,
-        ).fit_transform(matrix)
-
-    print("Calculating t-SNE...")
-    tsne_values = TSNE(
-        n_components=2,
-        perplexity=min(TSNE_PERPLEXITY, n_samples - 1),
-        random_state=RANDOM_STATE,
-        init="pca",
-        learning_rate="auto",
-    ).fit_transform(matrix)
-
-    return {
-        "PCA": pd.DataFrame(
-            pca_values,
-            index=matrix.index,
-            columns=["Dimension 1", "Dimension 2"],
-        ),
-        "UMAP": pd.DataFrame(
-            umap_values,
-            index=matrix.index,
-            columns=["Dimension 1", "Dimension 2"],
-        ),
-        "t-SNE": pd.DataFrame(
-            tsne_values,
-            index=matrix.index,
-            columns=["Dimension 1", "Dimension 2"],
-        ),
-    }
 
 
 # ---------------------------------------------------------------------
@@ -520,22 +498,18 @@ def main():
     metrics_file = (
         base_dir / "all_samples" / "all_samples_clustering_metrics.csv"
     )
-    matrix_file = base_dir / "aggregated_matrix.csv"
     metadata_file = base_dir / "sample_metadata_used_for_analysis.csv"
 
-    matrix, metadata, metrics = load_data(
-        matrix_file,
+    metadata, metrics = load_data(
         metadata_file,
         metrics_file,
     )
 
-    matrix.index = matrix.index.astype(str).str.strip()
     metadata["participant_tissue"] = (
         metadata["participant_tissue"].astype(str).str.strip()
     )
 
     metadata = metadata.set_index("participant_tissue")
-    metadata = metadata.reindex(matrix.index)
 
     selected_clusterings = args.clusterings
 
@@ -546,8 +520,6 @@ def main():
         raise ValueError(
             "The clinical metadata must contain a 'group' column."
         )
-
-    embeddings = calculate_embeddings(matrix)
 
     # Restrict CMS reference labels to tumor samples.
     if cms_col is not None:
@@ -600,10 +572,12 @@ def main():
             continue
 
         labels = load_cluster_labels(cluster_file)
-        cluster_labels = labels["cluster"].reindex(matrix.index)
+        embeddings = load_saved_embeddings(cluster_file)
+        sample_ids = embeddings["UMAP"].index
+        cluster_labels = labels["cluster"].reindex(sample_ids)
 
         if cluster_labels.notna().sum() == 0:
-            print("  No sample IDs matched the molecular matrix; skipping.")
+            print("  No sample IDs matched the saved coordinates; skipping.")
             continue
 
         method_name = (
